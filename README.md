@@ -151,7 +151,7 @@ Gemini AI generates explanations on demand
 
 ⚙️ Setup Instructions
 🔹 Clone Repository
-git clone <repo-link>
+git clone <https://github.com/Heath-280/Web-3-yield-intel.git>
 cd web3-yield-intel
 
 🔹 Frontend Setup
