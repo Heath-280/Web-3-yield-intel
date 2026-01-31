@@ -23,6 +23,14 @@ type YieldItem = {
   history?: number[];
 };
 
+/* ---------------- CONFIG ---------------- */
+
+const API_BASE_URL = typeof window !== 'undefined' 
+  ? (process.env.NODE_ENV === 'production' 
+    ? process.env.NEXT_PUBLIC_API_URL || 'https://your-backend-app.onrender.com'
+    : 'http://localhost:4000')
+  : '';
+
 /* ---------------- PAGE ---------------- */
 
 export default function Home() {
@@ -42,14 +50,28 @@ export default function Home() {
   useEffect(() => {
     async function fetchYields() {
       try {
-        const res = await fetch(
-          "https://web-3-yield-intel.onrender.com/api/yields"
-        );
+        if (!API_BASE_URL) return; // Skip if no API URL
+        
+        const res = await fetch(`${API_BASE_URL}/api/yields`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
         const data: YieldItem[] = await res.json();
         setYields(data.sort((a, b) => b.apy - a.apy));
         setLoading(false);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to fetch yields:', err);
+        setLoading(false);
+        // Set mock data if backend is not available
+        setYields([{
+          protocol: "Curve",
+          pool: "3pool", 
+          apy: 6.2,
+          apyChange: 0.1,
+          volatility: "LOW",
+          risk: "LOW",
+          history: [6.1, 6.15, 6.2]
+        }]);
       }
     }
 
@@ -72,18 +94,20 @@ export default function Home() {
       setLoadingAI(true);
       setAiInsight(null);
 
-      const res = await fetch(
-        "https://web-3-yield-intel.onrender.com/api/ai/analyze-yield",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(item),
-        }
-      );
+      const res = await fetch(`${API_BASE_URL}/api/ai/analyze-yield`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
 
       const data = await res.json();
       setAiInsight(data.analysis);
-    } catch {
+    } catch (error) {
+      console.error('AI analysis failed:', error);
       setAiInsight(
         "AI analysis is temporarily unavailable.\nThis feature is part of the Premium plan."
       );
