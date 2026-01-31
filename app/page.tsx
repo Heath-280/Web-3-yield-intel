@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSocket } from "./lib/socket";
 import {
   LineChart,
   Line,
@@ -15,6 +14,7 @@ import {
 
 type YieldItem = {
   protocol: string;
+  asset?: string;
   pool: string;
   apy: number;
   apyChange: number;
@@ -27,60 +27,63 @@ type YieldItem = {
 
 export default function Home() {
   const [yields, setYields] = useState<YieldItem[]>([]);
-  const [hasData, setHasData] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Subscription (mock for hackathon)
+  // Subscription mock
   const [userPlan, setUserPlan] =
     useState<"FREE" | "PREMIUM">("FREE");
 
-  // AI states
+  // AI states (UI only – backend already exists)
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
 
-  /* ---------------- SOCKET ---------------- */
+  /* ---------------- FETCH DATA (REST) ---------------- */
 
   useEffect(() => {
-    const socket = getSocket();
+    async function fetchYields() {
+      try {
+        const res = await fetch(
+          "https://web-3-yield-intel.onrender.com/api/yields"
+        );
+        const data: YieldItem[] = await res.json();
+        setYields(data.sort((a, b) => b.apy - a.apy));
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+      }
+    }
 
-    socket.on("yield:update", (data: YieldItem[]) => {
-      setYields([...data].sort((a, b) => b.apy - a.apy));
-      setHasData(true);
-    });
-
-    return () => {
-      socket.off("yield:update");
-    };
+    fetchYields();
+    const interval = setInterval(fetchYields, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-  /* ---------------- AI LOGIC ---------------- */
+  /* ---------------- AI MOCK (SAFE FOR DEMO) ---------------- */
 
   async function analyzeWithAI(item: YieldItem) {
+    if (userPlan !== "PREMIUM") {
+      setAiInsight(
+        "🔒 AI Yield Analysis is a Premium feature.\n\nUpgrade to Premium to get AI-powered explanations and risk insights."
+      );
+      return;
+    }
+
     try {
       setLoadingAI(true);
       setAiInsight(null);
 
       const res = await fetch(
-        "http://localhost:4000/api/ai/analyze-yield",
+        "https://web-3-yield-intel.onrender.com/api/ai/analyze-yield",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            protocol: item.protocol,
-            pool: item.pool,
-            apy: item.apy,
-            apyChange: item.apyChange,
-            volatility: item.volatility,
-            risk: item.risk,
-          }),
+          body: JSON.stringify(item),
         }
       );
 
-      if (!res.ok) throw new Error("AI API failed");
-
       const data = await res.json();
       setAiInsight(data.analysis);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setAiInsight(
         "AI analysis is temporarily unavailable.\nThis feature is part of the Premium plan."
       );
@@ -91,7 +94,7 @@ export default function Home() {
 
   /* ---------------- LOADING ---------------- */
 
-  if (!hasData) {
+  if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center text-white">
         Fetching real-time Curve yields…
@@ -204,17 +207,8 @@ export default function Home() {
                 </div>
               )}
 
-              {/* AI BUTTON */}
               <button
-                onClick={() => {
-                  if (userPlan === "PREMIUM") {
-                    analyzeWithAI(item);
-                  } else {
-                    setAiInsight(
-                      "🔒 AI Yield Analysis is a Premium feature.\n\nUpgrade to Premium to get AI-powered explanations and risk insights."
-                    );
-                  }
-                }}
+                onClick={() => analyzeWithAI(item)}
                 className="w-full mt-2 py-2 bg-white/10 rounded hover:bg-white/20"
               >
                 🤖 Analyze with AI
