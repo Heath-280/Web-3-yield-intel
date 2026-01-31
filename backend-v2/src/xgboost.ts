@@ -16,13 +16,16 @@ export function predictRisk(
     const scriptPath = path.join(__dirname, "..", "ml", "predict.py");
     const result = execSync(
       `python "${scriptPath}" ${apy.toFixed(6)} ${apyChange.toFixed(6)} ${volatility.toFixed(6)}`,
-      { encoding: 'utf8', timeout: 10000 }
+      { encoding: 'utf8', timeout: 5000 } // Reduced timeout
     );
 
     const parsed = JSON.parse(result.trim());
     return parsed.risk || "MEDIUM";
   } catch (error) {
-    console.error("XGBoost prediction failed:", error);
-    return "MEDIUM"; // Safe fallback
+    console.warn("ML prediction unavailable, using simple fallback");
+    // Simple fallback logic based on volatility and APY change
+    if (Math.abs(apyChange) > 0.5 || apy > 10) return "HIGH";
+    if (Math.abs(apyChange) > 0.2 || apy > 7) return "MEDIUM";
+    return "LOW";
   }
 }

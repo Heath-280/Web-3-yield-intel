@@ -57,11 +57,13 @@ export default function Home() {
         let res;
         try {
           // Try localhost first in development
+          console.log(`Trying ${API_BASE_URL}/api/yields`);
           res = await fetch(`${API_BASE_URL}/api/yields`);
         } catch (localError) {
           // If localhost fails, try fallback URL
           if (process.env.NODE_ENV !== 'production') {
             console.log('Localhost backend not available, trying fallback...');
+            console.log(`Trying ${FALLBACK_API_URL}/api/yields`);
             res = await fetch(`${FALLBACK_API_URL}/api/yields`);
           } else {
             throw localError;
@@ -72,6 +74,7 @@ export default function Home() {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
         const data: YieldItem[] = await res.json();
+        console.log('Successfully fetched data:', data.length, 'items');
         setYields(data.sort((a, b) => b.apy - a.apy));
         setLoading(false);
       } catch (err) {

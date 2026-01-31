@@ -14,8 +14,8 @@ const app = express();
 // CORS configuration for production
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL || 'https://your-frontend-app.vercel.app']
-    : true, // Allow all origins in development
+    ? [process.env.FRONTEND_URL || 'https://web-3-yield-intel-yield.vercel.app']
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://web-3-yield-intel-yield.vercel.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
