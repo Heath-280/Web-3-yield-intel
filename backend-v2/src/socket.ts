@@ -1,20 +1,15 @@
-import { Server } from "socket.io";
+import { io, Socket } from "socket.io-client";
 
-let io: Server | null = null;
+let socket: Socket | null = null;
 
-export function initSocket(server: any) {
-  io = new Server(server, {
-    cors: {
-      origin: "*",
-    },
-  });
-
-  io.on("connection", () => {
-    console.log("🟢 Client connected");
-  });
-}
-
-export function broadcast(event: string, data: any) {
-  if (!io) return;
-  io.emit(event, data);
+export function getSocket() {
+  if (!socket) {
+    socket = io(
+      "https://web-3-yield-intel.onrender.com",
+      {
+        transports: ["websocket"],
+      }
+    );
+  }
+  return socket;
 }

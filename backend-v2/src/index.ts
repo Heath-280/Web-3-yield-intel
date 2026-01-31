@@ -5,7 +5,7 @@ import http from "http";
 import routes from "./routes";
 import { fetchCurveAPY } from "./fetcher";
 import { updateStore, getAllYields } from "./store";
-import { broadcast, initSocket } from "./socket";
+
 import { calculateVolatility } from "./volatility";
 import { predictRisk } from "./xgboost";
 
@@ -15,7 +15,7 @@ app.use(express.json());
 app.use("/api", routes);
 
 const server = http.createServer(app);
-initSocket(server);
+
 
 const PORT = process.env.PORT || 4000;
 
@@ -56,6 +56,4 @@ setInterval(async () => {
       risk,
     };
   });
-
-  broadcast("yield:update", latest);
 }, 5000);
