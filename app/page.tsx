@@ -1,65 +1,249 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { getSocket } from "./lib/socket";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+/* ---------------- TYPES ---------------- */
+
+type YieldItem = {
+  protocol: string;
+  pool: string;
+  apy: number;
+  apyChange: number;
+  volatility: "LOW" | "MEDIUM" | "HIGH";
+  risk?: "LOW" | "MEDIUM" | "HIGH";
+  history?: number[];
+};
+
+/* ---------------- PAGE ---------------- */
 
 export default function Home() {
+  const [yields, setYields] = useState<YieldItem[]>([]);
+  const [hasData, setHasData] = useState(false);
+
+  // Subscription (mock for hackathon)
+  const [userPlan, setUserPlan] =
+    useState<"FREE" | "PREMIUM">("FREE");
+
+  // AI states
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [loadingAI, setLoadingAI] = useState(false);
+
+  /* ---------------- SOCKET ---------------- */
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    socket.on("yield:update", (data: YieldItem[]) => {
+      setYields([...data].sort((a, b) => b.apy - a.apy));
+      setHasData(true);
+    });
+
+    return () => {
+      socket.off("yield:update");
+    };
+  }, []);
+
+  /* ---------------- AI LOGIC ---------------- */
+
+  async function analyzeWithAI(item: YieldItem) {
+    try {
+      setLoadingAI(true);
+      setAiInsight(null);
+
+      const res = await fetch(
+        "http://localhost:4000/api/ai/analyze-yield",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            protocol: item.protocol,
+            pool: item.pool,
+            apy: item.apy,
+            apyChange: item.apyChange,
+            volatility: item.volatility,
+            risk: item.risk,
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error("AI API failed");
+
+      const data = await res.json();
+      setAiInsight(data.analysis);
+    } catch (err) {
+      console.error(err);
+      setAiInsight(
+        "AI analysis is temporarily unavailable.\nThis feature is part of the Premium plan."
+      );
+    } finally {
+      setLoadingAI(false);
+    }
+  }
+
+  /* ---------------- LOADING ---------------- */
+
+  if (!hasData) {
+    return (
+      <main className="min-h-screen flex items-center justify-center text-white">
+        Fetching real-time Curve yields…
+      </main>
+    );
+  }
+
+  /* ---------------- UI ---------------- */
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white px-6 py-10">
+      {/* HEADER */}
+      <header className="max-w-6xl mx-auto mb-10">
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={() => setUserPlan("FREE")}
+            className={`px-3 py-1 text-xs rounded ${
+              userPlan === "FREE"
+                ? "bg-blue-500 text-white"
+                : "bg-white/10"
+            }`}
+          >
+            Free
+          </button>
+          <button
+            onClick={() => setUserPlan("PREMIUM")}
+            className={`px-3 py-1 text-xs rounded ${
+              userPlan === "PREMIUM"
+                ? "bg-emerald-500 text-black"
+                : "bg-white/10"
+            }`}
+          >
+            Premium
+          </button>
+        </div>
+
+        <p className="text-sm text-gray-400 mb-3">
+          Current Plan: <span className="font-semibold">{userPlan}</span>
+        </p>
+
+        <h1 className="text-4xl font-bold">
+          Web3 Yield Intelligence
+        </h1>
+        <p className="text-gray-400">
+          Live Curve APY tracking with ML-powered risk analysis
+        </p>
+      </header>
+
+      {/* CARDS */}
+      <section className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8">
+        {yields.map((item) => {
+          const chartData =
+            item.history?.map((v, i) => ({
+              time: i,
+              apy: v,
+            })) ?? [];
+
+          return (
+            <div
+              key={item.pool}
+              className="rounded-2xl p-6 bg-white/5 border border-emerald-400 shadow-xl"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              <h2 className="text-xl font-semibold mb-1">
+                {item.protocol} · {item.pool}
+              </h2>
+
+              <p className="text-4xl font-bold mb-1">
+                {item.apy}% APY
+              </p>
+
+              <p
+                className={`mb-3 text-sm ${
+                  item.apyChange >= 0
+                    ? "text-emerald-400"
+                    : "text-red-400"
+                }`}
+              >
+                {item.apyChange >= 0 ? "+" : ""}
+                {item.apyChange}% last minute
+              </p>
+
+              <div className="flex gap-2 mb-4">
+                <span className="px-3 py-1 text-xs rounded-full bg-emerald-500/20">
+                  Volatility: {item.volatility}
+                </span>
+                {item.risk && (
+                  <span className="px-3 py-1 text-xs rounded-full bg-yellow-500/20">
+                    🧠 ML Risk: {item.risk}
+                  </span>
+                )}
+              </div>
+
+              {/* GRAPH */}
+              {chartData.length > 1 && (
+                <div className="h-32 w-full mb-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <XAxis hide />
+                      <YAxis hide />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="apy"
+                        stroke="#34d399"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* AI BUTTON */}
+              <button
+                onClick={() => {
+                  if (userPlan === "PREMIUM") {
+                    analyzeWithAI(item);
+                  } else {
+                    setAiInsight(
+                      "🔒 AI Yield Analysis is a Premium feature.\n\nUpgrade to Premium to get AI-powered explanations and risk insights."
+                    );
+                  }
+                }}
+                className="w-full mt-2 py-2 bg-white/10 rounded hover:bg-white/20"
+              >
+                🤖 Analyze with AI
+              </button>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* AI OUTPUT */}
+      {loadingAI && (
+        <p className="text-center mt-8 text-gray-400 animate-pulse">
+          AI is analyzing this yield…
+        </p>
+      )}
+
+      {aiInsight && (
+        <div className="max-w-4xl mx-auto mt-10 p-6 rounded-xl bg-white/5 border border-white/10">
+          <h3 className="text-lg font-semibold mb-2">
+            🤖 AI Yield Insight
+          </h3>
+          <p className="text-gray-300 whitespace-pre-line">
+            {aiInsight}
+          </p>
+          <p className="text-xs text-gray-500 mt-3">
+            This analysis is informational and not financial advice.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      )}
+    </main>
   );
 }
