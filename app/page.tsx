@@ -50,37 +50,37 @@ export default function Home() {
   /* ---------------- FETCH DATA (REST) ---------------- */
 
   useEffect(() => {
+    let isActive = true;
+
     async function fetchYields() {
-      try {
-        if (!API_BASE_URL) return;
-        
-        let res;
+      if (!isActive) return;
+      
+      const urls = ['http://localhost:4000', FALLBACK_API_URL];
+      
+      for (const url of urls) {
         try {
-          // Try localhost first in development
-          console.log(`Trying ${API_BASE_URL}/api/yields`);
-          res = await fetch(`${API_BASE_URL}/api/yields`);
-        } catch (localError) {
-          // If localhost fails, try fallback URL
-          if (process.env.NODE_ENV !== 'production') {
-            console.log('Localhost backend not available, trying fallback...');
-            console.log(`Trying ${FALLBACK_API_URL}/api/yields`);
-            res = await fetch(`${FALLBACK_API_URL}/api/yields`);
-          } else {
-            throw localError;
+          console.log(`Trying ${url}/api/yields`);
+          const res = await fetch(`${url}/api/yields`);
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
           }
+          const data: YieldItem[] = await res.json();
+          console.log('Successfully fetched data:', data.length, 'items');
+          if (isActive) {
+            setYields(data.sort((a, b) => b.apy - a.apy));
+            setLoading(false);
+          }
+          return; // Success, exit function
+        } catch (err) {
+          console.log(`Failed to fetch from ${url}:`, err);
+          continue; // Try next URL
         }
-        
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        const data: YieldItem[] = await res.json();
-        console.log('Successfully fetched data:', data.length, 'items');
-        setYields(data.sort((a, b) => b.apy - a.apy));
+      }
+      
+      // All URLs failed, use mock data
+      if (isActive) {
+        console.log('All backends failed, using mock data');
         setLoading(false);
-      } catch (err) {
-        console.error('Failed to fetch yields:', err);
-        setLoading(false);
-        // Set mock data if both backends are unavailable
         setYields([{
           protocol: "Curve",
           pool: "3pool", 
@@ -93,9 +93,18 @@ export default function Home() {
       }
     }
 
-    fetchYields();
-    const interval = setInterval(fetchYields, 5000);
-    return () => clearInterval(interval);
+    async function pollData() {
+      await fetchYields();
+      if (isActive) {
+        setTimeout(pollData, 3000); // Wait 3 seconds after response
+      }
+    }
+
+    pollData();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   /* ---------------- AI MOCK (SAFE FOR DEMO) ---------------- */
@@ -112,33 +121,33 @@ export default function Home() {
       setLoadingAI(true);
       setAiInsight(null);
 
-      let res;
-      try {
-        // Try localhost first in development
-        res = await fetch(`${API_BASE_URL}/api/ai/analyze-yield`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(item),
-        });
-      } catch (localError) {
-        // If localhost fails, try fallback URL
-        if (process.env.NODE_ENV !== 'production') {
-          res = await fetch(`${FALLBACK_API_URL}/api/ai/analyze-yield`, {
+      const urls = ['http://localhost:4000', FALLBACK_API_URL];
+      
+      for (const url of urls) {
+        try {
+          const res = await fetch(`${url}/api/ai/analyze-yield`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(item),
           });
-        } else {
-          throw localError;
+          
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          
+          const data = await res.json();
+          setAiInsight(data.analysis);
+          return; // Success, exit function
+        } catch (err) {
+          console.log(`AI analysis failed for ${url}:`, err);
+          continue; // Try next URL
         }
       }
-
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
-      const data = await res.json();
-      setAiInsight(data.analysis);
+      
+      // All URLs failed
+      setAiInsight(
+        "AI analysis is temporarily unavailable.\nThis feature is part of the Premium plan."
+      );
     } catch (error) {
       console.error('AI analysis failed:', error);
       setAiInsight(
