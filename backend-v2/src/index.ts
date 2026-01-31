@@ -36,7 +36,9 @@ server.listen(PORT, () => {
 // 🔁 Poll every 5 seconds
 setInterval(async () => {
   try {
+    console.log("🔄 Polling for new APY data...");
     const apy = await fetchCurveAPY();
+    console.log(`💰 New APY: ${apy}%`);
 
     updateStore("curve-3pool", {
       protocol: "Curve",
@@ -67,7 +69,8 @@ setInterval(async () => {
         risk,
       };
     });
+    console.log("✅ Data updated successfully");
   } catch (error) {
-    console.error("Error in polling interval:", error);
+    console.error("❌ Error in polling interval:", error);
   }
 }, 5000);

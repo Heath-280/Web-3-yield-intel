@@ -13,6 +13,7 @@ router.get("/health", (req, res) => {
 
 // 🔹 Yield data
 router.get("/yields", (req, res) => {
+  console.log("📊 GET /yields - Request received");
   try {
     const data = getAllYields().map(item => {
       const { change, level } = calculateVolatility(item.history);
@@ -24,6 +25,7 @@ router.get("/yields", (req, res) => {
         1.0;
 
       const risk = predictRisk(item.apy, change, volatilityScore);
+      console.log(`🧠 ML Risk calculated: ${risk} for ${item.protocol}-${item.pool}`);
       
       return {
         ...item,
@@ -33,9 +35,10 @@ router.get("/yields", (req, res) => {
       };
     });
 
+    console.log(`✅ Returning ${data.length} yield items`);
     res.json(data);
   } catch (error) {
-    console.error("Error fetching yields:", error);
+    console.error("❌ Error fetching yields:", error);
     res.status(500).json({ error: "Failed to fetch yield data" });
   }
 });

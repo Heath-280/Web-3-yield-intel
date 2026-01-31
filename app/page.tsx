@@ -27,9 +27,11 @@ type YieldItem = {
 
 const API_BASE_URL = typeof window !== 'undefined' 
   ? (process.env.NODE_ENV === 'production' 
-    ? process.env.NEXT_PUBLIC_API_URL || 'https://your-backend-app.onrender.com'
+    ? process.env.NEXT_PUBLIC_API_URL || 'https://web-3-yield-intel.onrender.com'
     : 'http://localhost:4000')
   : '';
+
+const FALLBACK_API_URL = 'https://web-3-yield-intel.onrender.com';
 
 /* ---------------- PAGE ---------------- */
 
@@ -50,9 +52,22 @@ export default function Home() {
   useEffect(() => {
     async function fetchYields() {
       try {
-        if (!API_BASE_URL) return; // Skip if no API URL
+        if (!API_BASE_URL) return;
         
-        const res = await fetch(`${API_BASE_URL}/api/yields`);
+        let res;
+        try {
+          // Try localhost first in development
+          res = await fetch(`${API_BASE_URL}/api/yields`);
+        } catch (localError) {
+          // If localhost fails, try fallback URL
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('Localhost backend not available, trying fallback...');
+            res = await fetch(`${FALLBACK_API_URL}/api/yields`);
+          } else {
+            throw localError;
+          }
+        }
+        
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
@@ -62,7 +77,7 @@ export default function Home() {
       } catch (err) {
         console.error('Failed to fetch yields:', err);
         setLoading(false);
-        // Set mock data if backend is not available
+        // Set mock data if both backends are unavailable
         setYields([{
           protocol: "Curve",
           pool: "3pool", 
@@ -94,11 +109,26 @@ export default function Home() {
       setLoadingAI(true);
       setAiInsight(null);
 
-      const res = await fetch(`${API_BASE_URL}/api/ai/analyze-yield`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item),
-      });
+      let res;
+      try {
+        // Try localhost first in development
+        res = await fetch(`${API_BASE_URL}/api/ai/analyze-yield`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(item),
+        });
+      } catch (localError) {
+        // If localhost fails, try fallback URL
+        if (process.env.NODE_ENV !== 'production') {
+          res = await fetch(`${FALLBACK_API_URL}/api/ai/analyze-yield`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(item),
+          });
+        } else {
+          throw localError;
+        }
+      }
 
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
