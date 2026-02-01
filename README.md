@@ -196,7 +196,7 @@ A short demo video explaining:
 - AI-powered explanations
 - Subscription-based access
 
-📺 Demo Link: <paste-your-video-link-here>
+📺 Demo Link: <https://youtu.be/PnNUHPXtdK0>
 
 
 🚀 Deployment
@@ -206,4 +206,4 @@ Frontend is deployed using Vercel for fast and reliable access.
 Backend supports production deployment using platforms like Render or Railway.
 
 Live Deployment URL:
-<add-link-here>
+<https://web-3-yield-intel.vercel.app/>
